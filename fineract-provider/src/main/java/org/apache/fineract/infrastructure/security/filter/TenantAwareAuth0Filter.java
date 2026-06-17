@@ -134,41 +134,34 @@ public class TenantAwareAuth0Filter extends OncePerRequestFilter {
 
                     try {
                         userDetails = userDetailsService.loadUserByUsername(jwt.getSubject());
+                        setAuthentication(userDetails);
                         // update the user
-                        auth0UserImportService.updateUser(jwt, userDetails);
+                        AppUser appUser = auth0UserImportService.updateUser(jwt, userDetails);
 
-                        Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, userDetails.getPassword(),
-                                auth0UserImportService.resolveAuthoritiesFromUserDetails(userDetails).getLeft());
-                        // update user authorities if they're changed
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        setAuthentication(appUser);
                     } catch (UsernameNotFoundException ex) {
                         LOG.error("User not found", ex);
 
                         AppUser appUser = auth0UserImportService.importPrincipal(jwt);
-                        Authentication authentication = new UsernamePasswordAuthenticationToken(appUser, appUser.getPassword(),
-                                auth0UserImportService.resolveAuthoritiesFromUserDetails(appUser).getLeft());
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        setAuthentication(appUser);
                     }
                 } else if (auth0Authentication.getPrincipal() instanceof OidcUser) {
                     // with interactive login
                     UserDetails userDetails = null;
+                    OidcUser oidcUser = (OidcUser) auth0Authentication.getPrincipal();
 
                     try {
-                        userDetails = userDetailsService.loadUserByUsername(((OidcUser) auth0Authentication.getPrincipal()).getName());
+                        userDetails = userDetailsService.loadUserByUsername(oidcUser.getName());
+                        setAuthentication(userDetails);
                         // TODO: should we update the user?
-                        auth0UserImportService.updateUser((OidcUser) auth0Authentication, userDetails);
+                        AppUser appUser = auth0UserImportService.updateUser(oidcUser, userDetails);
 
-                        Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, userDetails.getPassword(),
-                                auth0UserImportService.resolveAuthoritiesFromUserDetails(userDetails).getLeft());
-                        // update user authorities if they're changed
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        setAuthentication(appUser);
                     } catch (UsernameNotFoundException ex) {
                         LOG.error("Username not found", ex);
 
-                        AppUser appUser = auth0UserImportService.importPrincipal((OidcUser) auth0Authentication.getPrincipal());
-                        Authentication authentication = new UsernamePasswordAuthenticationToken(appUser, appUser.getPassword(),
-                                auth0UserImportService.resolveAuthoritiesFromUserDetails(appUser).getLeft());
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        AppUser appUser = auth0UserImportService.importPrincipal(oidcUser);
+                        setAuthentication(appUser);
                     }
                 }
 
@@ -197,5 +190,11 @@ public class TenantAwareAuth0Filter extends OncePerRequestFilter {
             final PlatformRequestLog log = PlatformRequestLog.from(task, request);
             LOG.debug("{}", this.toApiJsonSerializer.serialize(log));
         }
+    }
+
+    private void setAuthentication(UserDetails userDetails) {
+        Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, userDetails.getPassword(),
+                auth0UserImportService.resolveAuthoritiesFromUserDetails(userDetails).getLeft());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 }
