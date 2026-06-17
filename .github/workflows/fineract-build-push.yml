@@ -46,6 +46,14 @@ jobs:
       # Set Env Variables
       - name: Set Env Variables
         run: bash ./eng/environments/${{ env.GLOBAL_ENV }}.sh
+      # Set up QEMU
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm64
+      # Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       # Create GitHub Container Tags
       - name: Create GitHub Container Tags
         run: |
@@ -65,6 +73,7 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.GITHUB_MAIN_TAG }}
             ${{ env.GITHUB_VER_TAG }}
@@ -108,9 +117,11 @@ jobs:
           username: ${{ env.TARGET_ORG }}
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ env.TARGET_CONTAINER_REG }}
-      # Pull from GitHub
-      - name: Pull from GitHub
-        run: docker pull $GITHUB_VER_TAG
+      # Install skopeo for multi-arch registry copies
+      - name: Install skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
       # Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -125,27 +136,19 @@ jobs:
         with:
           mask-password: 'true'
       # Create AWS Container Tags
-      - name: Create GitHub Container Tags
+      - name: Create AWS Container Tags
         env:
             ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
           echo "AWS_MAIN_TAG=${{ env.ECR_REGISTRY }}/${{ env.SERVER_NAME }}:${{ env.CONTAINER_MAIN_TAG }}" >> $GITHUB_ENV
           echo "AWS_VER_TAG=${{ env.ECR_REGISTRY }}/${{ env.SERVER_NAME }}:${{ env.VER_NUM }}" >> $GITHUB_ENV
-      # Tag Image
-      - name: Tag Image
+      # Copy manifest list to Amazon ECR
+      - name: Copy Image
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
         run: |
-          docker tag $GITHUB_VER_TAG $AWS_MAIN_TAG
-          docker tag $GITHUB_VER_TAG $AWS_VER_TAG
-      # Push to Amazon ECR
-      - name: Push Image
-        id: push-image
-        env:
-          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-        run: |
-          docker push $AWS_MAIN_TAG
-          docker push $AWS_VER_TAG
+          skopeo copy --all --authfile "$HOME/.docker/config.json" docker://$GITHUB_VER_TAG docker://$AWS_MAIN_TAG
+          skopeo copy --all --authfile "$HOME/.docker/config.json" docker://$GITHUB_VER_TAG docker://$AWS_VER_TAG
   update-tfenv-versions:
     needs:
       - build-server-images
