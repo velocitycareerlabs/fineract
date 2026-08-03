@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-FROM openjdk:11 AS builder
+FROM --platform=$BUILDPLATFORM eclipse-temurin:11-jdk AS builder
 
 RUN apt-get update -qq && apt-get install -y wget
 
@@ -33,7 +33,7 @@ WORKDIR /fineract/libs
 RUN wget -q https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.23/mysql-connector-java-8.0.23.jar
 # =========================================
 
-FROM gcr.io/distroless/java11 as fineract
+FROM gcr.io/distroless/java11-debian11 AS fineract
 
 COPY --from=builder /fineract/fineract-provider/build/libs /app
 COPY --from=builder /fineract/libs /app/libs
