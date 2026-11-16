@@ -271,6 +271,9 @@ bootJar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
         attributes 'Main-Class': 'org.springframework.boot.loader.PropertiesLauncher', 'Implementation-Title':   'Apache Fineract', 'Implementation-Version': archiveVersion
+        // Gson serializes the java.time types it has no adapter for, such as LocalTime, by reflection, which Java 17
+        // and later block unless the package is open. `java -jar` applies this whatever the entrypoint.
+        attributes 'Add-Opens': 'java.base/java.time'
     }
     dependsOn resolve
     dependsOn deployPentahoReports

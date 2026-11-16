@@ -128,6 +128,7 @@ allprojects  {
             dependency 'org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE'
             dependency 'org.apache.openjpa:openjpa:3.2.0' // when upgrading, also change OpenJPA version repeated above in buildscript!
             dependency 'org.apache.xbean:xbean-asm9-shaded:4.31' // OpenJPA's ASM, for Java 21 class files; also in buildscript above
+            dependency 'org.openjdk.nashorn:nashorn-core:15.7'
             dependency 'com.google.guava:guava:31.0.1-jre'
             dependency 'com.google.code.gson:gson:2.8.9'
             dependency 'com.google.truth:truth:1.1.3'
