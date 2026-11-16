@@ -1,21 +1,11 @@
 name: Publish Packages and Images
+# Builds one image for every environment from each commit to main, and deploys it to dev.
+# Staging and prod pin the same image in velocitycareerlabs/engineering's tf/17, which also sets each
+# environment's Auth0 tenant.
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        type: choice
-        description: Choose environment
-        default: 'dev'
-        options: 
-        - dev
-        - qa    
-        - staging
-        - prod
   push:
     branches:
       - main
-env:
-  GLOBAL_ENV: ${{ github.event_name == 'push' && format('{0}', 'dev') || inputs.environment }}
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -43,9 +33,6 @@ jobs:
       # Set Common Variables
       - name: Set Common Variables
         run: bash ./eng/environments/common.sh
-      # Set Env Variables
-      - name: Set Env Variables
-        run: bash ./eng/environments/${{ env.GLOBAL_ENV }}.sh
       # Set up QEMU
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -77,10 +64,6 @@ jobs:
           tags: |
             ${{ env.GITHUB_MAIN_TAG }}
             ${{ env.GITHUB_VER_TAG }}
-          build-args: |
-            FINERACT_SECURITY_AUTH0_DOMAIN=${{ env.FINERACT_SECURITY_AUTH0_DOMAIN }}
-            FINERACT_SECURITY_AUTH0_ISSUER_URI=${{ env.FINERACT_SECURITY_AUTH0_ISSUER_URI }}
-            FINERACT_SECURITY_AUTH0_AUDIENCE=${{ env.FINERACT_SECURITY_AUTH0_AUDIENCE }}
       # SHA digest used for Prod env
       - name: Image id as env
         run: echo "image_sha=${{ steps.github-build-stage.outputs.digest }}" >> $GITHUB_ENV
@@ -103,9 +86,6 @@ jobs:
       # Set Common Variables
       - name: Set Common Variables
         run: bash ./eng/environments/common.sh
-      # Set Env Variables
-      - name: Set Env Variables
-        run: bash ./eng/environments/${{ env.GLOBAL_ENV }}.sh
       # Create GitHub Container Tags
       - name: Create GitHub Container Tags
         run: |
@@ -170,9 +150,6 @@ jobs:
       # Set Common Variables
       - name: Set Common Variables
         run: bash ./eng/environments/common.sh
-      # Set Env Variables
-      - name: Set Env Variables
-        run: bash ./eng/environments/${{ env.GLOBAL_ENV }}.sh
       # Run worflow update tf in deployment repo
       - name: Run worflow update tf in deployment repo
         uses: actions/github-script@v6
@@ -185,7 +162,7 @@ jobs:
               workflow_id: 'external-version-update.yml',
               ref: 'main',
               inputs: {
-                'config-env': '${{ env.GLOBAL_ENV }}',
+                'config-env': 'dev',
                 'version': '${{ env.VER_NUM }}',
                 'service_name': '${{ env.UPDATE_SERVICE_NAME }}',
                 'image_sha': '${{ env.IMAGE_SHA }}'
