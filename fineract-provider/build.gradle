@@ -259,7 +259,9 @@ task deployPentahoReports() {
 
 bootRun {
     jvmArgs = [
-        "-Dspring.output.ansi.enabled=ALWAYS"
+        "-Dspring.output.ansi.enabled=ALWAYS",
+        // As bootJar's Add-Opens, which only `java -jar` applies
+        "--add-opens=java.base/java.time=ALL-UNNAMED"
     ]
 }
 
