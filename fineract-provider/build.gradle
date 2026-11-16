@@ -183,8 +183,8 @@ war {
 }
 
 /* http://stackoverflow.com/questions/19653311/jpa-repository-works-in-idea-and-production-but-not-in-gradle */
-sourceSets.main.output.resourcesDir = sourceSets.main.java.outputDir
-sourceSets.test.output.resourcesDir = sourceSets.test.java.outputDir
+sourceSets.main.output.resourcesDir = sourceSets.main.java.destinationDirectory
+sourceSets.test.output.resourcesDir = sourceSets.test.java.destinationDirectory
 
 /* Exclude maria db related files for non dev builds */
 if (!(project.hasProperty('env') && project.getProperty('env') == 'dev')) {
@@ -284,7 +284,7 @@ bootWar {
 
 tasks.withType(Tar) {
     compression Compression.GZIP
-    extension 'tar.gz'
+    archiveExtension = 'tar.gz'
 }
 
 distributions {
@@ -328,7 +328,7 @@ if( project.hasProperty("fineract.release") ) {
     }
     tasks.withType(Tar) { task ->
         task.doLast {
-            ant.checksum file: task.archivePath, algorithm: 'SHA-512', fileext: '.sha512'
+            ant.checksum file: task.archiveFile.get().asFile, algorithm: 'SHA-512', fileext: '.sha512'
         }
     }
     tasks.withType(Sign) { task ->
@@ -378,3 +378,6 @@ checkstyleTest.dependsOn resolve
 licenseMain.dependsOn processResources, generateGitProperties
 spotbugsTest.dependsOn resolve
 test.dependsOn resolve
+bootJarMainClassName.dependsOn resolve
+jar.dependsOn resolve
+war.dependsOn resolve

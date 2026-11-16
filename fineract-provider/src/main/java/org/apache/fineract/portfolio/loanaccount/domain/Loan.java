@@ -2062,7 +2062,7 @@ public class Loan extends AbstractPersistableCustom {
 
             final LocalDate rejectedOn = command.localDateValueOfParameterNamed("rejectedOnDate");
 
-            final Locale locale = new Locale(command.locale());
+            final Locale locale = Locale.of(command.locale());
             final DateTimeFormatter fmt = DateTimeFormatter.ofPattern(command.dateFormat()).withLocale(locale);
 
             this.rejectedOnDate = Date.from(rejectedOn.atStartOfDay(DateUtils.getDateTimeZoneOfTenant()).toInstant());
@@ -2111,7 +2111,7 @@ public class Loan extends AbstractPersistableCustom {
                 withdrawnOn = command.localDateValueOfParameterNamed("eventDate");
             }
 
-            final Locale locale = new Locale(command.locale());
+            final Locale locale = Locale.of(command.locale());
             final DateTimeFormatter fmt = DateTimeFormatter.ofPattern(command.dateFormat()).withLocale(locale);
 
             this.withdrawnOnDate = Date.from(withdrawnOn.atStartOfDay(DateUtils.getDateTimeZoneOfTenant()).toInstant());

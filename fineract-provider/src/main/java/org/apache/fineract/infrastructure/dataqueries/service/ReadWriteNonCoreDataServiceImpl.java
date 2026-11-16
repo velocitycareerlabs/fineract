@@ -1631,7 +1631,7 @@ public class ReadWriteNonCoreDataServiceImpl implements ReadWriteNonCoreDataServ
         Locale clientApplicationLocale = null;
         final String localeQueryParam = queryParams.get("locale");
         if (!StringUtils.isBlank(localeQueryParam)) {
-            clientApplicationLocale = new Locale(queryParams.get("locale"));
+            clientApplicationLocale = Locale.of(queryParams.get("locale"));
         }
 
         final String underscore = "_";

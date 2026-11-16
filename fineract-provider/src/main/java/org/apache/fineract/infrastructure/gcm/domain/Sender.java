@@ -698,6 +698,8 @@ public class Sender {
     /**
      * Gets an {@link HttpURLConnection} given an URL.
      */
+    // new URL(String) is deprecated since Java 20, but URI.create(url).toURL() rejects URLs it accepts
+    @SuppressWarnings("deprecation")
     protected HttpURLConnection getConnection(String url) throws IOException {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         conn.setConnectTimeout(connectTimeout);

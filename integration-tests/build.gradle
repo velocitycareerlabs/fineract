@@ -59,6 +59,8 @@ cargo {
 cargoRunLocal.dependsOn ':fineract-provider:war'
 cargoStartLocal.dependsOn ':fineract-provider:war'
 cargoStartLocal.mustRunAfter 'testClasses'
+// fineract-client's resources go to its classes directory, which the tests compile against
+compileTestJava.dependsOn ':fineract-client:processResources'
 
 test {
     dependsOn cargoStartLocal

@@ -113,6 +113,8 @@ public class TemplateMergeService {
         return result;
     }
 
+    // new URL(String) is deprecated since Java 20, but URI.create(url).toURL() rejects URLs it accepts
+    @SuppressWarnings("deprecation")
     private HttpURLConnection getConnection(final String url) {
         if (this.authToken == null) {
             final String name = SecurityContextHolder.getContext().getAuthentication().getName();
