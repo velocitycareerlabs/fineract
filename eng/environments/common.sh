@@ -19,7 +19,7 @@
 #
 
 
-CURR_VERSION="1.15.1"
+CURR_VERSION="1.16.0"
 # Every environment runs the same build, so each build gets its own version
 VER_NUM="$CURR_VERSION-build.1$GITHUB_SHA_SHORT"
 CONTAINER_MAIN_TAG="latest"
