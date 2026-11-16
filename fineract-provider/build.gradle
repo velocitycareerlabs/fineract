@@ -183,8 +183,8 @@ war {
 }
 
 /* http://stackoverflow.com/questions/19653311/jpa-repository-works-in-idea-and-production-but-not-in-gradle */
-sourceSets.main.output.resourcesDir = sourceSets.main.java.outputDir
-sourceSets.test.output.resourcesDir = sourceSets.test.java.outputDir
+sourceSets.main.output.resourcesDir = sourceSets.main.java.destinationDirectory
+sourceSets.test.output.resourcesDir = sourceSets.test.java.destinationDirectory
 
 /* Exclude maria db related files for non dev builds */
 if (!(project.hasProperty('env') && project.getProperty('env') == 'dev')) {
@@ -259,7 +259,9 @@ task deployPentahoReports() {
 
 bootRun {
     jvmArgs = [
-        "-Dspring.output.ansi.enabled=ALWAYS"
+        "-Dspring.output.ansi.enabled=ALWAYS",
+        // As bootJar's Add-Opens, which only `java -jar` applies
+        "--add-opens=java.base/java.time=ALL-UNNAMED"
     ]
 }
 
@@ -271,6 +273,9 @@ bootJar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
         attributes 'Main-Class': 'org.springframework.boot.loader.PropertiesLauncher', 'Implementation-Title':   'Apache Fineract', 'Implementation-Version': archiveVersion
+        // Gson serializes the java.time types it has no adapter for, such as LocalTime, by reflection, which Java 17
+        // and later block unless the package is open. `java -jar` applies this whatever the entrypoint.
+        attributes 'Add-Opens': 'java.base/java.time'
     }
     dependsOn resolve
     dependsOn deployPentahoReports
@@ -284,7 +289,7 @@ bootWar {
 
 tasks.withType(Tar) {
     compression Compression.GZIP
-    extension 'tar.gz'
+    archiveExtension = 'tar.gz'
 }
 
 distributions {
@@ -328,7 +333,7 @@ if( project.hasProperty("fineract.release") ) {
     }
     tasks.withType(Tar) { task ->
         task.doLast {
-            ant.checksum file: task.archivePath, algorithm: 'SHA-512', fileext: '.sha512'
+            ant.checksum file: task.archiveFile.get().asFile, algorithm: 'SHA-512', fileext: '.sha512'
         }
     }
     tasks.withType(Sign) { task ->
@@ -378,3 +383,6 @@ checkstyleTest.dependsOn resolve
 licenseMain.dependsOn processResources, generateGitProperties
 spotbugsTest.dependsOn resolve
 test.dependsOn resolve
+bootJarMainClassName.dependsOn resolve
+jar.dependsOn resolve
+war.dependsOn resolve

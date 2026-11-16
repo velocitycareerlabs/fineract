@@ -119,6 +119,8 @@ dependencies {
 
     // runtimeOnly dependencies are things that Fineract code has no direct compile time dependency on, but which must be present at run-time
     runtimeOnly(
+            // The JavaScript engine that MIX reports evaluate their taxonomy mappings with, which the JDK dropped in Java 15
+            'org.openjdk.nashorn:nashorn-core',
             'org.apache.bval:org.apache.bval.bundle',
             'org.springframework.boot:spring-boot-starter-actuator',
             'org.webjars.npm:swagger-ui-dist',

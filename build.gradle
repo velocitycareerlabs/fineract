@@ -19,7 +19,7 @@
 // TODO: this is work in progress, please follow FINERACT-1171
 buildscript {
     ext {
-        jacocoVersion = '0.8.7'
+        jacocoVersion = '0.8.12'
         retrofitVersion = '2.9.0'
         okhttpVersion = '4.9.2'
         oltuVersion = '1.0.1'
@@ -48,6 +48,8 @@ buildscript {
     dependencies {
         classpath 'com.bmuschko:gradle-cargo-plugin:2.8.0'
         classpath 'org.apache.openjpa:openjpa:3.2.0' // when upgrading, also change OpenJPA version repeated in fineract-provider/build.gradle!
+        // OpenJPA 3.2.0's ASM can't read Java 21 class files; when upgrading, also change the version in dependencyManagement below
+        classpath 'org.apache.xbean:xbean-asm9-shaded:4.31'
         classpath 'com.github.radcortez:openjpa-gradle-plugin:3.1.0'
         classpath 'gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:4.7.5'
         classpath 'gradle.plugin.com.github.andygoossens:gradle-modernizer-plugin:1.3.0'
@@ -56,16 +58,16 @@ buildscript {
 
 plugins {
     id 'io.spring.dependency-management' version '1.1.4'
-    id "org.barfuin.gradle.taskinfo" version "1.3.1"
+    id "org.barfuin.gradle.taskinfo" version "2.2.0"
     id 'com.adarshr.test-logger' version '3.1.0'
-    id 'com.diffplug.spotless' version '6.1.0' apply false
+    id 'com.diffplug.spotless' version '6.25.0' apply false
     id 'org.nosphere.apache.rat' version '0.7.0' apply false
     id 'com.github.hierynomus.license' version '0.16.1' apply false
     id 'com.github.jk1.dependency-license-report' version '2.0' apply false
     id 'org.openapi.generator' version '4.3.1' apply false
     id 'org.zeroturnaround.gradle.jrebel' version '1.1.11' apply false
     id 'org.springframework.boot' version '2.7.18' apply false
-    id 'net.ltgt.errorprone' version '2.0.2' apply false
+    id 'net.ltgt.errorprone' version '4.1.0' apply false
     id 'io.swagger.core.v3.swagger-gradle-plugin' version '2.1.11' apply false
     id 'com.gorylenko.gradle-git-properties' version '2.3.2' apply false
     id 'org.asciidoctor.jvm.convert' version '3.3.2' apply false
@@ -125,6 +127,8 @@ allprojects  {
 
             dependency 'org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE'
             dependency 'org.apache.openjpa:openjpa:3.2.0' // when upgrading, also change OpenJPA version repeated above in buildscript!
+            dependency 'org.apache.xbean:xbean-asm9-shaded:4.31' // OpenJPA's ASM, for Java 21 class files; also in buildscript above
+            dependency 'org.openjdk.nashorn:nashorn-core:15.7'
             dependency 'com.google.guava:guava:31.0.1-jre'
             dependency 'com.google.code.gson:gson:2.8.9'
             dependency 'com.google.truth:truth:1.1.3'
@@ -252,7 +256,8 @@ allprojects  {
         groovyGradle {
             target '*.gradle', '**/*.gradle'
             targetExclude '**/build/**'
-            greclipse()
+            // The formatter versions Spotless 6.1.0 used, so the code's formatting doesn't change
+            greclipse('4.21')
             indentWithSpaces(4)
             endWithNewline()
             trimTrailingWhitespace()
@@ -405,13 +410,13 @@ configure(project.fineractJavaProjects) {
     apply plugin: 'com.github.andygoossens.modernizer'
 
     /* define the valid syntax level for source files */
-    sourceCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_21
     /* define binary compatibility version */
-    targetCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_21
 
     /* http://stackoverflow.com/questions/19653311/jpa-repository-works-in-idea-and-production-but-not-in-gradle */
-    sourceSets.main.output.resourcesDir = sourceSets.main.java.outputDir
-    sourceSets.test.output.resourcesDir = sourceSets.test.java.outputDir
+    sourceSets.main.output.resourcesDir = sourceSets.main.java.destinationDirectory
+    sourceSets.test.output.resourcesDir = sourceSets.test.java.destinationDirectory
 
     configurations {
         implementation.setCanBeResolved(true)
@@ -466,7 +471,7 @@ configure(project.fineractJavaProjects) {
             targetExclude '**/build/**', '**/bin/**', '**/out/**'
             importOrder() //sort imports alphabetically
             removeUnusedImports()
-            eclipse().configFile "$rootDir/config/fineractdev-formatter.xml"
+            eclipse('4.21').configFile "$rootDir/config/fineractdev-formatter.xml"
             endWithNewline()
             trimTrailingWhitespace()
 
@@ -509,7 +514,7 @@ configure(project.fineractJavaProjects) {
     // If we are running Gradle within Eclipse to enhance classes with OpenJPA,
     // set the classes directory to point to Eclipse's default build directory
     if (project.hasProperty('env') && project.getProperty('env') == 'eclipse') {
-        sourceSets.main.java.outputDir = file("$projectDir/bin/main")
+        sourceSets.main.java.destinationDirectory = file("$projectDir/bin/main")
     }
 
     // Configuration for the Checkstyle plugin
@@ -523,21 +528,30 @@ configure(project.fineractJavaProjects) {
     // https://www.eclemma.org/jacoco/
     jacoco {
         toolVersion = jacocoVersion
-        reportsDir = file("$buildDir/reports/jacoco")
+        reportsDirectory = file("$buildDir/reports/jacoco")
     }
 
     jacocoTestReport {
         reports {
-            html.enabled=true
-            xml.enabled=true
-            html.destination file("${buildDir}/code-coverage")
+            html.required = true
+            xml.required = true
+            html.outputLocation = file("${buildDir}/code-coverage")
         }
     }
 
     // Configuration for the errorprone plugin
     // https://github.com/tbroyer/gradle-errorprone-plugin
     dependencies {
-        errorprone "com.google.errorprone:error_prone_core:2.10.0"
+        errorprone "com.google.errorprone:error_prone_core:2.36.0"
+    }
+
+    // Error Prone needs a newer Guava than the one the application uses
+    dependencyManagement {
+        configurations(errorprone) {
+            dependencies {
+                dependency 'com.google.guava:guava:32.1.1-jre'
+            }
+        }
     }
 
     tasks.withType(JavaCompile) {
@@ -555,7 +569,27 @@ configure(project.fineractJavaProjects) {
                     "AlmostJavadoc",
                     "InvalidBlockTag",
                     "JavaUtilDate", // TODO FINERACT-1298
-                    "ReturnValueIgnored"
+                    "ReturnValueIgnored",
+                    // Added or widened since Error Prone 2.10, and they flag existing code.
+                    // PreferredInterfaceType took over MutableMethodReturnType.
+                    "AlreadyChecked",
+                    "DirectInvocationOnMock",
+                    "DoNotCall",
+                    "DuplicateBranches",
+                    "LongDoubleConversion",
+                    "NarrowCalculation",
+                    "NonApiType",
+                    "NotJavadoc",
+                    "OperatorPrecedence",
+                    "PatternMatchingInstanceof",
+                    "PreferredInterfaceType",
+                    "ReturnAtTheEndOfVoidFunction",
+                    "StringCaseLocaleUsage",
+                    "SuperCallToObjectMethod",
+                    "SystemConsoleNull",
+                    "UnnecessaryLongToIntConversion",
+                    "UnnecessaryStringBuilder",
+                    "UnusedMethod"
                     )
             error(
                     "DefaultCharset",
@@ -599,7 +633,6 @@ configure(project.fineractJavaProjects) {
                     "UnsafeFinalization",
                     "JavaTimeDefaultTimeZone",
                     "JodaPlusMinusLong",
-                    "MutableMethodReturnType",
                     "SwitchDefault",
                     "VarTypeName",
                     "ArgumentSelectionDefectChecker",
@@ -610,7 +643,6 @@ configure(project.fineractJavaProjects) {
                     "MissingCasesInEnumSwitch",
                     "ReferenceEquality",
                     "UndefinedEquals",
-                    "PublicConstructorForAbstractClass",
                     "UnescapedEntity",
                     "ModifyCollectionInEnhancedForLoop",
                     "NonCanonicalType",
@@ -618,13 +650,11 @@ configure(project.fineractJavaProjects) {
                     "MutablePublicArray",
                     "StaticAssignmentInConstructor",
                     "ProtectedMembersInFinalClass",
-                    "OperatorPrecedence",
                     "EqualsGetClass",
                     "EqualsUnsafeCast",
                     "DoubleBraceInitialization",
                     "UnnecessaryDefaultInEnumSwitch",
                     "UnusedNestedClass",
-                    "UnusedMethod",
                     "ModifiedButNotUsed",
                     "InconsistentCapitalization",
                     "MissingOverride",
@@ -675,6 +705,9 @@ configure(project.fineractJavaProjects) {
     }
 
     // Configuration for https://github.com/andygoossens/gradle-modernizer-plugin
+    // Modernizer's own ASM can't read Java 21 class files
+    configurations.modernizer.resolutionStrategy.force 'org.ow2.asm:asm:9.7.1'
+
     modernizer {
         includeTestClasses = true
         failOnViolations = true

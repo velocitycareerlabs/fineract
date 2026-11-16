@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-FROM --platform=$BUILDPLATFORM eclipse-temurin:11-jdk AS builder
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk AS builder
 
 RUN apt-get update -qq && apt-get install -y wget
 
@@ -33,7 +33,7 @@ WORKDIR /fineract/libs
 RUN wget -q https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.23/mysql-connector-java-8.0.23.jar
 # =========================================
 
-FROM gcr.io/distroless/java11-debian11 AS fineract
+FROM gcr.io/distroless/java21-debian12 AS fineract
 
 COPY --from=builder /fineract/fineract-provider/build/libs /app
 COPY --from=builder /fineract/libs /app/libs
@@ -50,14 +50,8 @@ ENV FINERACT_DEFAULT_TENANTDB_PORT=3306
 ENV fineract_tenants_driver=com.mysql.jdbc.Driver
 ENV TZ="UTC"
 
-ARG FINERACT_SECURITY_AUTH0_DOMAIN
-ENV FINERACT_SECURITY_AUTH0_DOMAIN=${FINERACT_SECURITY_AUTH0_DOMAIN}
-
-ARG FINERACT_SECURITY_AUTH0_ISSUER_URI
-ENV FINERACT_SECURITY_AUTH0_ISSUER_URI=${FINERACT_SECURITY_AUTH0_ISSUER_URI}
-
-ARG FINERACT_SECURITY_AUTH0_AUDIENCE
-ENV FINERACT_SECURITY_AUTH0_AUDIENCE=${FINERACT_SECURITY_AUTH0_AUDIENCE}
+# The deployment sets the Auth0 tenant: FINERACT_SECURITY_AUTH0_DOMAIN, FINERACT_SECURITY_AUTH0_ISSUER_URI
+# and FINERACT_SECURITY_AUTH0_AUDIENCE. Fineract doesn't start without them.
 
 WORKDIR /app
 
